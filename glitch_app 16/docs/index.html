@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glitchy — glitch detection for test-tone recordings</title>
+<meta name="description" content="Glitchy detects clicks, flatlines, distortion, and frequency deviation in recorded or live test-tone audio. Batch analysis across every core, or continuous live monitoring.">
+<link rel="icon" type="image/png" href="assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #15171a; --panel: #1a1d21; --panel-alt: #1c1f23; --border: #2c3036; --border-soft: #22262b;
+    --text: #e8eaed; --text-dim: #c7ccd1; --text-faint: #9aa1a9; --text-ghost: #6b7280;
+    --accent: #e8934a; --accent-text: #15171a;
+    --success: #5fb87a; --warning: #e0b64f; --danger: #e2645c; --info: #6bb8d6; --purple: #b58ce0;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif; line-height: 1.6;
+  }
+  .mono { font-family: 'IBM Plex Mono', Menlo, Consolas, monospace; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header.nav {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(21,23,26,0.9); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  header.nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; color: var(--text); }
+  .brand img { width: 28px; height: 28px; border-radius: 7px; }
+  .nav-links { display: flex; gap: 24px; font-size: 14px; color: var(--text-faint); }
+  .nav-links a { color: var(--text-faint); }
+  .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+  .hero { padding: 96px 0 64px; text-align: center; }
+  .hero img.icon { width: 120px; height: 120px; border-radius: 26px; margin-bottom: 28px; box-shadow: 0 20px 60px rgba(232,147,74,0.15); }
+  .hero h1 { font-size: 48px; margin: 0 auto 14px; letter-spacing: -0.02em; max-width: 680px; }
+  .hero p.tagline { font-size: 19px; color: var(--text-faint); max-width: 620px; margin: 0 auto 36px; }
+  .btn-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 13px 24px; border-radius: 8px;
+    font-weight: 600; font-size: 15px; border: 1px solid var(--border);
+  }
+  .btn:hover { text-decoration: none; }
+  .btn-primary { background: var(--accent); color: var(--accent-text); border: none; }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-secondary { background: var(--panel-alt); color: var(--text-dim); }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .hero-sub { font-size: 13px; color: var(--text-ghost); }
+  .hero-sub a { color: var(--text-ghost); text-decoration: underline; }
+
+  .hero-shot { margin-top: 56px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5); }
+  .hero-shot img { display: block; width: 100%; }
+
+  section { padding: 72px 0; border-top: 1px solid var(--border-soft); }
+  section h2 { font-size: 28px; margin: 0 0 12px; }
+  section > .wrap > p.lead { color: var(--text-faint); font-size: 16px; max-width: 640px; margin: 0 0 44px; }
+
+  .feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .feature-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+  .feature-card h3 { margin: 0 0 10px; font-size: 17px; display: flex; align-items: center; gap: 10px; }
+  .feature-card .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .feature-card p { margin: 0; color: var(--text-faint); font-size: 14.5px; }
+
+  .shot-block { display: flex; gap: 40px; align-items: center; margin-bottom: 64px; }
+  .shot-block:last-child { margin-bottom: 0; }
+  .shot-block.reverse { flex-direction: row-reverse; }
+  .shot-block .text { flex: 0 0 300px; }
+  .shot-block .text h3 { font-size: 20px; margin: 0 0 10px; }
+  .shot-block .text p { color: var(--text-faint); font-size: 14.5px; margin: 0; }
+  .shot-block .shot { flex: 1; border-radius: 10px; overflow: hidden; border: 1px solid var(--border);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.4); }
+  .shot-block .shot img { display: block; width: 100%; }
+
+  .glitch-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .glitch-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .glitch-card h4 { margin: 0 0 8px; font-size: 15px; }
+  .glitch-card p { margin: 0; font-size: 13.5px; color: var(--text-faint); }
+  .c-click { color: var(--danger); } .c-flat { color: var(--warning); }
+  .c-res { color: var(--info); } .c-freq { color: var(--purple); }
+
+  .install-steps { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 28px 32px; }
+  .install-steps h3 { margin-top: 0; font-size: 16px; }
+  .install-steps ol { margin: 0; padding-left: 20px; color: var(--text-dim); font-size: 14.5px; }
+  .install-steps li { margin-bottom: 8px; }
+  .install-note { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border-soft);
+    font-size: 13.5px; color: var(--text-ghost); }
+
+  footer { padding: 48px 0 64px; border-top: 1px solid var(--border-soft); }
+  footer .wrap { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+  footer p { margin: 0; font-size: 13px; color: var(--text-ghost); }
+  footer .links { display: flex; gap: 20px; font-size: 13px; }
+  footer .links a { color: var(--text-faint); }
+
+  @media (max-width: 760px) {
+    .hero h1 { font-size: 34px; }
+    .feature-grid, .glitch-grid { grid-template-columns: 1fr; }
+    .shot-block, .shot-block.reverse { flex-direction: column; }
+    .shot-block .text { flex: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <div class="brand"><img src="assets/icon.png" alt=""> Glitchy</div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#glitch-types">Glitch Types</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/kevintayloruk/Glitchy">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero" style="border-top:none; padding-top:96px;">
+  <div class="wrap">
+    <img class="icon" src="assets/icon.png" alt="Glitchy icon">
+    <h1>Find the glitch before the broadcast does.</h1>
+    <p class="tagline">Glitchy detects clicks, flatlines, distortion, and frequency deviation in
+       test-tone recordings — analyze hours of files in parallel across every core, or watch a
+       live feed continuously and get alerted the moment something breaks.</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="https://github.com/kevintayloruk/Glitchy/releases/latest">&#8595; Download for Mac</a>
+      <a class="btn btn-secondary" href="https://github.com/kevintayloruk/Glitchy/releases/latest">&#8595; Download for Windows</a>
+      <a class="btn btn-secondary" href="https://github.com/kevintayloruk/Glitchy">View source</a>
+    </div>
+    <p class="hero-sub">Free and open source, MIT licensed. Not notarized for macOS —
+       <a href="#install">see first-launch notes</a>.</p>
+
+    <div class="hero-shot">
+      <img src="assets/screenshots/results.png" alt="Glitchy results screen showing analyzed files, detected glitches, and filters">
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>Two ways to catch a glitch</h2>
+    <p class="lead">The same detection engine, whether you're auditing files you already have
+       or watching a signal chain live.</p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h3><span class="dot"></span>Batch analysis, all cores at once</h3>
+        <p>Point it at a folder of recordings and it analyzes as many in parallel as your
+           machine has cores — a stack of hour-long files finishes in minutes, not hours.</p>
+      </div>
+      <div class="feature-card">
+        <h3><span class="dot"></span>Live monitoring</h3>
+        <p>Watch a sound card input or a network audio stream (SDP/AES67, multicast included)
+           continuously, with alerts and saved clips the moment a glitch happens.</p>
+      </div>
+      <div class="feature-card">
+        <h3><span class="dot"></span>Auto frequency detection</h3>
+        <p>No need to know the exact tone in advance — Glitchy samples each file or feed and
+           finds it via FFT peak detection, accurate to a fraction of a Hz.</p>
+      </div>
+      <div class="feature-card">
+        <h3><span class="dot"></span>Clip extraction with context</h3>
+        <p>Every detected glitch can save a short WAV around it, with independently
+           configurable pre-roll and post-issue timing so you get exactly the context you need.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="shot-block">
+      <div class="text">
+        <h3>Analyze in parallel</h3>
+        <p>Every file gets its own process and its own progress bar, with live elapsed time,
+           an estimated finish time, and a running alert count as glitches turn up.</p>
+      </div>
+      <div class="shot"><img src="assets/screenshots/analyzing.png" alt="Analyzing multiple files in parallel with per-file progress"></div>
+    </div>
+    <div class="shot-block reverse">
+      <div class="text">
+        <h3>Live monitoring, any source</h3>
+        <p>A local sound card input or a network stream described by an SDP file — paste it,
+           or browse for the file — with a configurable run time and alerting.</p>
+      </div>
+      <div class="shot"><img src="assets/screenshots/live_sdp.png" alt="Live Monitor setup screen configuring a network SDP stream"></div>
+    </div>
+  </div>
+</section>
+
+<section id="glitch-types">
+  <div class="wrap">
+    <h2>What Glitchy actually looks for</h2>
+    <p class="lead">Four distinct signal problems, each detected a different way.</p>
+    <div class="glitch-grid">
+      <div class="glitch-card">
+        <h4 class="c-click">Click / Pop</h4>
+        <p>A single-sample discontinuity — an abrupt jump far larger than the signal's normal
+           movement. Usually a digital dropout, buffer underrun, or bad connection.</p>
+      </div>
+      <div class="glitch-card">
+        <h4 class="c-flat">Flatline / Stuck</h4>
+        <p>The signal freezes at one value longer than a real tone could ever sit still.
+           Points to a sample-and-hold freeze or a dropped cycle.</p>
+      </div>
+      <div class="glitch-card">
+        <h4 class="c-res">Residual / Distortion</h4>
+        <p>Energy shows up outside the pure tone itself. Detected by filtering out the
+           fundamental and checking what's left behind — often clipping or interference.</p>
+      </div>
+      <div class="glitch-card">
+        <h4 class="c-freq">Frequency Deviation</h4>
+        <p>Cycle-to-cycle timing drifts from the expected tone, measured directly from
+           zero-crossing spacing. Suggests sample-rate mismatch or clock drift.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p class="lead">Prebuilt downloads live on the
+       <a href="https://github.com/kevintayloruk/Glitchy/releases/latest">Releases page</a>.
+       Both platforms are built from the same source with PyInstaller.</p>
+
+    <div class="install-steps">
+      <h3>macOS</h3>
+      <ol>
+        <li>Download <code class="mono">Glitchy.dmg</code> from the latest release</li>
+        <li>Open it and drag Glitchy into Applications</li>
+        <li><strong>First launch only:</strong> right-click Glitchy in Applications and choose
+            <strong>Open</strong> (then Open again on the warning) — it's not signed with a
+            paid Apple Developer certificate, so macOS shows an "unidentified developer"
+            warning the first time</li>
+      </ol>
+      <div class="install-note">
+        Everything's bundled — Network Stream mode's ffmpeg included, so
+        there's nothing extra to install for either feature.
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>MIT licensed. Built with Python, Qt/PySide6, NumPy, SciPy, and other open source
+       components — see <a href="https://github.com/kevintayloruk/Glitchy/blob/main/resources/THIRD_PARTY_NOTICES.md">Third-Party Notices</a>.</p>
+    <div class="links">
+      <a href="https://github.com/kevintayloruk/Glitchy">GitHub</a>
+      <a href="https://github.com/kevintayloruk/Glitchy/issues">Issues</a>
+      <a href="https://github.com/kevintayloruk/Glitchy/releases">Releases</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
